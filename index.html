@@ -316,6 +316,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   </div>
 </div>
 
+<!-- EDIT DAY MODAL -->
+<div class="modal" id="edit-day-modal">
+  <div class="mc2" style="max-width:360px">
+    <div class="mt">Edit Day P&L</div>
+    <div id="edit-day-info" style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;line-height:2;border:1px solid var(--border)"></div>
+    <div class="ig"><div class="lbl">Updated P&L ($)</div><input type="number" id="edit-pl-input" placeholder="e.g. 240 or -80" step="0.01" oninput="previewEditPL()"/></div>
+    <div id="edit-pl-preview" style="display:none;background:var(--bg2);border-radius:8px;padding:9px 12px;font-size:11px;line-height:2;margin-bottom:10px;border:1px solid var(--border)"></div>
+    <div class="ig"><div class="lbl">Notes (optional)</div><input type="text" id="edit-day-notes" placeholder="Reason for adjustment..."/></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn bs" style="flex:1" onclick="closeEditDayModal()">Cancel</button>
+      <button class="btn bp" style="flex:2" onclick="saveEditDay()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM MODAL -->
 <div class="modal" id="confirm-modal">
   <div class="mc2" style="max-width:300px;border-color:var(--red);text-align:center">
@@ -551,6 +566,84 @@ function doWeeklyReset(){
 }
 
 // ── DAILY LOG ─────────────────────────────────────────────────────────
+let editDayIdx = null;
+
+function openEditDayModal(idx){
+  editDayIdx = idx;
+  const d = S.dayHistory[idx];
+  if(!d || d.isReset) return;
+  const cfg = getCfg(d.tS);
+  document.getElementById('edit-day-info').innerHTML =
+    `Day ${d.day} · ${fmtD(d.date)}<br>` +
+    `Current P&L: <span class="${d.pl>=0?'gc':'rc'}" style="font-family:'Bebas Neue',sans-serif;font-size:15px">${fmt(d.pl,true)}</span><br>` +
+    `Tradeable: ${fmt(d.tS)} → ${fmt(d.tE)}`;
+  document.getElementById('edit-pl-input').value = d.pl;
+  document.getElementById('edit-day-notes').value = '';
+  document.getElementById('edit-pl-preview').style.display = 'none';
+  document.getElementById('edit-day-modal').classList.add('open');
+}
+
+function closeEditDayModal(){
+  document.getElementById('edit-day-modal').classList.remove('open');
+  editDayIdx = null;
+}
+
+function previewEditPL(){
+  const d = S.dayHistory[editDayIdx];
+  if(!d) return;
+  const newPL = parseFloat(document.getElementById('edit-pl-input').value);
+  const prev = document.getElementById('edit-pl-preview');
+  if(isNaN(newPL)){prev.style.display='none';return;}
+  const diff = newPL - d.pl;
+  const cfg = getCfg(d.tS);
+  prev.style.display = 'block';
+  prev.innerHTML = `Change: <span class="${diff>=0?'gc':'rc'}">${diff>=0?'+':''}${diff.toFixed(2)}</span><br>` +
+    `New tradeable end: <span style="color:var(--accent)">${fmt(d.tS + (newPL>0 ? newPL*cfg.ri : newPL))}</span>`;
+}
+
+function saveEditDay(){
+  const d = S.dayHistory[editDayIdx];
+  if(!d || d.isReset) return;
+  const newPL = parseFloat(document.getElementById('edit-pl-input').value);
+  const notes = document.getElementById('edit-day-notes').value.trim();
+  if(isNaN(newPL)){alert('Enter a valid P&L');return;}
+
+  const cfg = getCfg(d.tS);
+  const oldPL = d.pl;
+
+  // Recalculate buckets from scratch based on new PL
+  let newTE = d.tS, newEE = d.eS, newRI = 0, newEX = 0;
+  if(newPL > 0){
+    if(cfg.tier===5){newEX=newPL;newEE=d.eS+newPL;}
+    else{newRI=newPL*cfg.ri;newEX=newPL*cfg.ex;newTE=d.tS+newRI;newEE=d.eS+newEX;}
+  } else {
+    newTE = Math.max(0, d.tS + newPL);
+    newEE = d.eS;
+  }
+
+  // Calculate the difference to adjust current live balances
+  const teDiff = newTE - d.tE;
+  const eeDiff = newEE - d.eE;
+
+  // Update the day entry
+  d.pl = newPL;
+  d.tE = newTE;
+  d.eE = newEE;
+  d.ri = newRI;
+  d.ex = newEX;
+  if(notes) d.notes = (d.notes ? d.notes + ' · ' : '') + `[Edited: ${notes}]`;
+
+  // Adjust live balances by the difference
+  S.tradeable = Math.max(0, S.tradeable + teDiff);
+  S.excess = Math.max(0, S.excess + eeDiff);
+
+  closeEditDayModal();
+  save();
+  renderDash();
+  renderDailyLog();
+  renderAnalytics();
+}
+
 function renderDailyLog(){
   const el=document.getElementById('daily-list');
   const days=S.dayHistory.slice().reverse();
@@ -572,6 +665,9 @@ function renderDailyLog(){
         ${g?`<div>Reinvested: <span class="gc">+${fmt(d.ri)}</span></div><div>To Excess: <span class="pc">+${fmt(d.ex)}</span></div>`:''}
       </div>
       ${d.notes?`<div style="font-size:11px;color:var(--muted);margin-top:5px;font-style:italic">"${d.notes}"</div>`:''}
+      <div style="margin-top:9px">
+        <button class="btn bs" style="font-size:10px;padding:7px 14px;width:100%" onclick="openEditDayModal(${S.dayHistory.indexOf(d)})">✏️ Edit P&L</button>
+      </div>
     </div>`;
   }).join('');
 }
