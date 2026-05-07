@@ -356,21 +356,35 @@ async function loadFromSupabase(){
   if(!sbReady)return;
   try{
     showSyncStatus('↻ Syncing…',false);
-    const res=await fetch(`${SB_URL}/rest/v1/journal?id=eq.main&select=data`,{
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    const res=await fetch(`${SB_URL}/rest/v1/journal?select=*`,{
+      headers:{
+        'apikey':SB_KEY,
+        'Authorization':'Bearer '+SB_KEY,
+        'Content-Type':'application/json'
+      }
     });
+    if(!res.ok){
+      const err=await res.text();
+      console.error('Supabase load error:',res.status,err);
+      showSyncStatus('⚠ Load failed: '+res.status,true);
+      return;
+    }
     const rows=await res.json();
-    if(rows&&rows[0]&&rows[0].data&&Object.keys(rows[0].data).length>0){
+    console.log('Supabase rows:',rows);
+    if(rows&&rows.length>0&&rows[0].data&&Object.keys(rows[0].data).length>0){
       S=rows[0].data;
       saveLocal();
       renderAll();
       showSyncStatus('✓ Loaded',false);
     }else{
-      // First time — push local state up
+      // No data yet — push local state up
       await save();
       showSyncStatus('✓ Initialized',false);
     }
-  }catch(e){showSyncStatus('⚠ Load failed',true);}
+  }catch(e){
+    console.error('Load exception:',e);
+    showSyncStatus('⚠ Load failed',true);
+  }
 }
 
 function showSyncStatus(msg,error){
