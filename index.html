@@ -228,6 +228,18 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="lbl">Most Traded Tickers</div>
     <div id="an-tickers" style="margin-top:8px;font-size:12px;color:var(--muted)">No trades yet</div>
   </div>
+  <!-- Delta performance breakdown -->
+  <div class="card" style="margin-bottom:9px">
+    <div class="lbl" style="margin-bottom:10px">Performance by Delta Bucket</div>
+    <div id="an-delta-breakdown"><div style="font-size:11px;color:var(--muted)">Log trades with delta to see breakdown</div></div>
+  </div>
+
+  <!-- Trade type breakdown -->
+  <div class="card" style="margin-bottom:9px">
+    <div class="lbl" style="margin-bottom:10px">Performance by Trade Type</div>
+    <div id="an-type-breakdown"><div style="font-size:11px;color:var(--muted)">Log trades with trade type to see breakdown</div></div>
+  </div>
+
   <div class="g2">
     <div class="card" style="margin-bottom:0"><div class="lbl">Excess Accumulated</div><div class="sb pc" id="an-excess">$0</div></div>
     <div class="card" style="margin-bottom:0"><div class="lbl">Total Withdrawn</div><div class="sb oc" id="an-twith">$0</div></div>
@@ -272,12 +284,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="ig"><div class="lbl"># Contracts</div><input type="number" id="t-contracts" placeholder="5" min="1" oninput="calcTrade()"/></div>
       <div class="ig"><div class="lbl">Entry Price ($)</div><input type="number" id="t-entry" placeholder="1.25" step="0.01" oninput="calcTrade()"/></div>
     </div>
+    <div class="g2">
+      <div class="ig">
+        <div class="lbl">Delta at Entry</div>
+        <input type="number" id="t-delta" placeholder="0.45" step="0.01" min="0.01" max="0.99" oninput="calcTrade()"/>
+        <div style="font-size:9px;color:#4a5568;margin-top:4px">e.g. 0.50 = ATM · 0.30 = OTM · 0.70 = ITM</div>
+      </div>
+      <div class="ig">
+        <div class="lbl">Trade Type</div>
+        <select id="t-tradetype">
+          <option value="">Select...</option>
+          <option value="0DTE">0DTE</option>
+          <option value="Day">Day Trade</option>
+          <option value="Overnight">Overnight Swing</option>
+          <option value="Swing">True Swing</option>
+        </select>
+      </div>
+    </div>
     <div class="cbox" id="t-calcbox" style="display:none">
       <div class="g2" style="gap:4px 12px">
         <div>Pos Size: <span class="bc" id="tc-pos">—</span></div>
         <div>Total Cost: <span id="tc-cost">—</span></div>
         <div>1R Risk: <span class="rc" id="tc-r">—</span></div>
         <div>Stop Price: <span class="rc" id="tc-stop">—</span></div>
+        <div>Delta Equiv: <span style="color:var(--purple)" id="tc-dequiv">—</span></div>
+        <div>Share Equiv: <span style="color:var(--purple)" id="tc-sequiv">—</span></div>
+        <div>Δ per Dollar: <span style="color:var(--gold)" id="tc-dpd">—</span></div>
+        <div style="font-size:9px;color:var(--muted);grid-column:1/-1;margin-top:2px">Higher Δ/$ = more exposure per dollar spent</div>
       </div>
     </div>
     <hr/>
@@ -689,6 +722,8 @@ function openTradeModal(id=null){
     document.getElementById('t-entry').value=t.entryPrice||'';
     document.getElementById('t-pl').value='';
     document.getElementById('t-notes').value=t.notes||'';
+    document.getElementById('t-delta').value=t.delta||'';
+    document.getElementById('t-tradetype').value=t.tradeType||'';
     (t.exits||[]).forEach(ex=>addExit(ex));
     setTimeout(calcTrade,50);
   }else{
@@ -699,6 +734,8 @@ function openTradeModal(id=null){
     document.getElementById('t-expiry').value='';
     document.getElementById('t-contracts').value='';
     document.getElementById('t-entry').value='';
+    document.getElementById('t-delta').value='';
+    document.getElementById('t-tradetype').value='';
     document.getElementById('t-calcbox').style.display='none';
     document.getElementById('t-plbox').style.display='none';
     addExit();
@@ -771,6 +808,10 @@ function saveTrade(){
     stopPrice:e>0?parseFloat((e*0.80).toFixed(2)):0,
     totalCost:c*e*100,exits,pl:fPL,rOutcome:rU>0?fPL/rU:0,
     notes:document.getElementById('t-notes').value.trim(),
+    delta:parseFloat(document.getElementById('t-delta').value)||null,
+    deltaEquiv:(() => { const d=parseFloat(document.getElementById('t-delta').value); const ct=parseFloat(document.getElementById('t-contracts').value)||0; return (!isNaN(d)&&d>0) ? parseFloat((ct*d*100).toFixed(1)) : null; })(),
+    deltaPerDollar:(() => { const d=parseFloat(document.getElementById('t-delta').value); const e=parseFloat(document.getElementById('t-entry').value); return (d>0&&e>0) ? parseFloat((d/e).toFixed(3)) : null; })(),
+    tradeType:document.getElementById('t-tradetype').value||'',
   };
   if(editId!==null){const i=S.trades.findIndex(x=>x.id===editId);if(i>=0)S.trades[i]=trade;}
   else S.trades.unshift(trade);
@@ -795,6 +836,12 @@ function renderTrades(){
         <div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${col}">${fmt(t.pl,true)}</div><span class="pill ${g?'pg':'pr'}">${g?'WIN':'LOSS'}</span></div>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:5px">${t.contracts}x @ $${t.entryPrice} · Size: ${fmt(t.positionSize)} · Stop: $${t.stopPrice} · 1R=${fmt(t.rUnit)}</div>
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+        ${t.delta?`<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:${t.delta>=0.45&&t.delta<=0.55?'rgba(74,222,128,.12)':t.delta>=0.35?'rgba(251,191,36,.12)':'rgba(248,113,113,.12)'};color:${t.delta>=0.45&&t.delta<=0.55?'#4ade80':t.delta>=0.35?'#fbbf24':'#f87171'}">Δ ${t.delta.toFixed(2)}</span>`:''}
+        ${t.deltaEquiv?`<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(167,139,250,.12);color:#a78bfa">${t.deltaEquiv}Δ equiv</span>`:''}
+        ${t.deltaPerDollar?`<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(251,191,36,.12);color:${t.deltaPerDollar>=0.30?'#4ade80':t.deltaPerDollar>=0.20?'#fbbf24':'#f87171'}">${t.deltaPerDollar.toFixed(3)} Δ/$</span>`:''}
+        ${t.tradeType?`<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(56,189,248,.12);color:#38bdf8">${t.tradeType}</span>`:''}
+      </div>
       ${t.pl?`<div style="margin-top:5px;font-size:12px">R: <span style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:${col}">${sg}${rO.toFixed(2)}R</span></div>`:''}
       ${exits}
       ${t.notes?`<div style="font-size:11px;color:var(--muted);margin-top:6px;font-style:italic">"${t.notes}"</div>`:''}
@@ -819,6 +866,71 @@ function renderAnalytics(){
   document.getElementById('an-avg-r').textContent=rD.length?fmt(rD.reduce((a,d)=>a+d.pl,0)/rD.length):'—';
   document.getElementById('an-excess').textContent=fmt(S.excess);
   document.getElementById('an-twith').textContent=fmt(S.totalWithdrawn);
+
+  // Delta breakdown
+  const deltaTrades = S.trades.filter(t=>t.delta&&t.pl&&t.positionSize);
+  const deltaBuckets = [
+    {lbl:'Deep OTM',key:'deep',min:0,max:0.25,color:'#f87171'},
+    {lbl:'OTM',key:'otm',min:0.25,max:0.40,color:'#fbbf24'},
+    {lbl:'Near ATM',key:'natm',min:0.40,max:0.50,color:'#38bdf8'},
+    {lbl:'ATM',key:'atm',min:0.50,max:0.60,color:'#4ade80'},
+    {lbl:'ITM',key:'itm',min:0.60,max:1.0,color:'#a78bfa'},
+  ];
+  const deltaEl = document.getElementById('an-delta-breakdown');
+  if(deltaTrades.length){
+    let dHtml = '<div style="display:grid;gap:6px">';
+    deltaBuckets.forEach(b=>{
+      const bt = deltaTrades.filter(t=>t.delta>=b.min&&t.delta<b.max);
+      if(!bt.length) return;
+      const wins = bt.filter(t=>t.pl>0);
+      const wr = (wins.length/bt.length*100).toFixed(0);
+      const avgR = bt.length ? (bt.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.2)),0)/bt.length).toFixed(2) : 0;
+      const avgPL = bt.length ? bt.reduce((a,t)=>a+t.pl,0)/bt.length : 0;
+      dHtml += `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;border-left:3px solid ${b.color}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:11px;color:${b.color};font-weight:500">${b.lbl} (Δ${b.min.toFixed(2)}–${b.max.toFixed(2)})</span>
+          <span style="font-size:10px;color:var(--muted)">${bt.length} trade${bt.length!==1?'s':''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:10px">
+          <div style="text-align:center"><div style="color:var(--muted);font-size:9px">Win Rate</div><div style="color:${parseInt(wr)>=50?'#4ade80':'#f87171'};font-family:'Bebas Neue',sans-serif;font-size:18px">${wr}%</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:9px">Avg R</div><div style="color:${parseFloat(avgR)>=0?'#4ade80':'#f87171'};font-family:'Bebas Neue',sans-serif;font-size:18px">${parseFloat(avgR)>=0?'+':''}${avgR}R</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:9px">Avg P&L</div><div style="color:${avgPL>=0?'#4ade80':'#f87171'};font-family:'Bebas Neue',sans-serif;font-size:18px">${fmt(avgPL,true)}</div></div>
+        </div>
+      </div>`;
+    });
+    dHtml += '</div>';
+    deltaEl.innerHTML = dHtml;
+  }
+
+  // Trade type breakdown
+  const typeTrades = S.trades.filter(t=>t.tradeType&&t.pl&&t.positionSize);
+  const typeEl = document.getElementById('an-type-breakdown');
+  const typeColors = {'0DTE':'#f87171','Day':'#38bdf8','Overnight':'#a78bfa','Swing':'#4ade80'};
+  if(typeTrades.length){
+    const types = [...new Set(typeTrades.map(t=>t.tradeType))];
+    let tHtml = '<div style="display:grid;gap:6px">';
+    types.forEach(type=>{
+      const bt = typeTrades.filter(t=>t.tradeType===type);
+      const wins = bt.filter(t=>t.pl>0);
+      const wr = (wins.length/bt.length*100).toFixed(0);
+      const avgR = (bt.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.2)),0)/bt.length).toFixed(2);
+      const avgPL = bt.reduce((a,t)=>a+t.pl,0)/bt.length;
+      const col = typeColors[type]||'#e2e8f0';
+      tHtml += `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;border-left:3px solid ${col}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:11px;color:${col};font-weight:500">${type}</span>
+          <span style="font-size:10px;color:var(--muted)">${bt.length} trade${bt.length!==1?'s':''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:10px">
+          <div style="text-align:center"><div style="color:var(--muted);font-size:9px">Win Rate</div><div style="color:${parseInt(wr)>=50?'#4ade80':'#f87171'};font-family:'Bebas Neue',sans-serif;font-size:18px">${wr}%</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:9px">Avg R</div><div style="color:${parseFloat(avgR)>=0?'#4ade80':'#f87171'};font-family:'Bebas Neue',sans-serif;font-size:18px">${parseFloat(avgR)>=0?'+':''}${avgR}R</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:9px">Avg P&L</div><div style="color:${avgPL>=0?'#4ade80':'#f87171'};font-family:'Bebas Neue',sans-serif;font-size:18px">${fmt(avgPL,true)}</div></div>
+        </div>
+      </div>`;
+    });
+    tHtml += '</div>';
+    typeEl.innerHTML = tHtml;
+  }
   const tw=S.trades.filter(t=>t.pl&&t.positionSize);
   const twW=tw.filter(t=>t.pl>0),twL=tw.filter(t=>t.pl<0);
   const aWt=twW.length?twW.reduce((a,t)=>a+t.pl,0)/twW.length:null;
