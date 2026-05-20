@@ -902,7 +902,11 @@ function renderTrades(trades){
     return`<div class="li ${g?'gl':'rl'} fi">
       <div class="li-row">
         <div><div style="font-family:'Bebas Neue',sans-serif;font-size:20px">${t.ticker} <span style="font-size:13px;color:var(--muted)">${t.contract||''}</span></div><div style="font-size:10px;color:var(--muted)">${fmtD(t.date)}${t.expiry?' · Exp '+fmtD(t.expiry):''}</div></div>
-        <div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${col}">${fmt(t.pl,true)}</div><span class="pill ${g?'pg':'pr'}">${g?'WIN':'LOSS'}</span></div>
+        <div style="text-align:right">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${col}">${fmt(t.pl,true)}</div>
+          <div style="font-size:11px;color:${col};margin-top:1px">${(()=>{const pct=t.totalCost>0?(t.pl/t.totalCost*100):null;return pct!==null?`(${pct>=0?'+':''}${pct.toFixed(1)}%)`:'';})()}</div>
+          <span class="pill ${g?'pg':'pr'}">${g?'WIN':'LOSS'}</span>
+        </div>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:5px">${t.contracts}x @ $${t.entryPrice} · Size: ${fmt(t.positionSize)} · Stop: $${t.stopPrice} · 1R=${fmt(t.rUnit)}</div>
       <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
