@@ -414,7 +414,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
 <script>
 // ── STATE ─────────────────────────────────────────────────────────────
-const DEFAULTS={tradeable:2000,excess:372,totalWithdrawn:0,weeklyExcess:0,dayCount:0,weekCount:1,daysThisWeek:0,dayHistory:[],trades:[],withdrawals:[]};
+const DEFAULTS={tradeable:1400,excess:11,totalWithdrawn:0,weeklyExcess:0,dayCount:0,weekCount:1,daysThisWeek:0,dayHistory:[],trades:[],withdrawals:[]};
 let S=loadState();
 let SB_URL='', SB_KEY='', sbReady=false;
 
@@ -506,13 +506,13 @@ function clearSupabaseKeys(){
 
 // ── TIER / POSITION ───────────────────────────────────────────────────
 function getCfg(t){
-  if(t<5000)  return{tier:1,ri:.70,ex:.30,lbl:'Tier 1 — Growth Mode', next:5000, start:2000,color:'var(--t1)'};
+  if(t<5000)  return{tier:1,ri:.70,ex:.30,lbl:'Tier 1 — Growth Mode', next:5000, start:1400,color:'var(--t1)'};
   if(t<10000) return{tier:2,ri:.50,ex:.50,lbl:'Tier 2 — Building',    next:10000,start:5000,color:'var(--t2)'};
   if(t<46700) return{tier:3,ri:.40,ex:.60,lbl:'Tier 3 — Compounding', next:46700,start:10000,color:'var(--t3)'};
   if(t<50000) return{tier:4,ri:.40,ex:.60,lbl:'Tier 4 — Capped Risk', next:50000,start:46700,color:'var(--t4)'};
   return             {tier:5,ri:.00,ex:1.0,lbl:'Tier 5 — Salary Machine',next:50000,start:50000,color:'var(--t5)'};
 }
-function getPos(t){return Math.min(Math.max(500+Math.floor((t-2000)/1000)*100,500),5000);}
+function getPos(t){return Math.min(Math.max(500+Math.floor(t/1000)*100-100,500),5000);}
 
 // ── FORMAT ────────────────────────────────────────────────────────────
 function fmt(n,sign=false){
@@ -543,7 +543,7 @@ function renderDash(){
   document.getElementById('d-pos').textContent=fmt(pos);
   document.getElementById('d-runit').textContent=fmt(rUnit);
   document.getElementById('d-maxday').textContent=fmt(pos*3);
-  document.getElementById('d-pos-next').textContent=pos<5000?`+$100 at ${fmt(Math.ceil((S.tradeable-2000)/1000)*1000+3000)}`:'⚡ MAX';
+  document.getElementById('d-pos-next').textContent=pos<5000?`+$100 at ${fmt((Math.floor(S.tradeable/1000)+1)*1000)}`:'⚡ MAX';
   document.getElementById('d-split-c').textContent=(cfg.ri*100).toFixed(0)+'%';
   document.getElementById('d-split-e').textContent=(cfg.ex*100).toFixed(0)+'%';
   document.getElementById('d-withdrawn').textContent=fmt(S.totalWithdrawn);
@@ -565,8 +565,8 @@ function renderGrowthChart(){
   const ctx=document.getElementById('growth-chart').getContext('2d');
   const days=S.dayHistory.filter(d=>!d.isReset);
   const labels=['Start'];
-  const broker=[2372];
-  const total=[2372];
+  const broker=[1411];
+  const total=[1411];
   let cumW=0;
   days.forEach(d=>{
     labels.push('D'+d.day);
