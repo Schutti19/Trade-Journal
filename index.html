@@ -129,7 +129,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="lbl">Position Size</div><div class="val bc" id="d-pos">$0</div>
       <div style="font-size:9px;color:var(--muted);margin-top:3px" id="d-pos-next"></div>
     </div>
-    <div class="card" style="margin-bottom:0"><div class="lbl">1R Unit</div><div class="val rc" id="d-runit">$0</div><div style="font-size:9px;color:var(--muted);margin-top:3px">20% of pos</div></div>
+    <div class="card" style="margin-bottom:0"><div class="lbl">1R Unit</div><div class="val rc" id="d-runit">$0</div><div style="font-size:9px;color:var(--muted);margin-top:3px">30% of pos</div></div>
     <div class="card" style="margin-bottom:0"><div class="lbl">Max Day (3x)</div><div class="val oc" id="d-maxday">$0</div></div>
   </div>
   <div class="g2" style="margin-bottom:9px">
@@ -414,7 +414,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
 <script>
 // ── STATE ─────────────────────────────────────────────────────────────
-const DEFAULTS={tradeable:1400,excess:11,totalWithdrawn:0,weeklyExcess:0,dayCount:0,weekCount:1,daysThisWeek:0,dayHistory:[],trades:[],withdrawals:[]};
+const DEFAULTS={tradeable:8470,excess:2000,totalWithdrawn:0,weeklyExcess:0,dayCount:0,weekCount:1,daysThisWeek:0,dayHistory:[],trades:[],withdrawals:[]};
 let S=loadState();
 let SB_URL='', SB_KEY='', sbReady=false;
 
@@ -506,13 +506,13 @@ function clearSupabaseKeys(){
 
 // ── TIER / POSITION ───────────────────────────────────────────────────
 function getCfg(t){
-  if(t<5000)  return{tier:1,ri:.70,ex:.30,lbl:'Tier 1 — Growth Mode', next:5000, start:1400,color:'var(--t1)'};
+  if(t<5000)  return{tier:1,ri:.70,ex:.30,lbl:'Tier 1 — Growth Mode', next:5000, start:8470,color:'var(--t1)'};
   if(t<10000) return{tier:2,ri:.50,ex:.50,lbl:'Tier 2 — Building',    next:10000,start:5000,color:'var(--t2)'};
   if(t<46700) return{tier:3,ri:.40,ex:.60,lbl:'Tier 3 — Compounding', next:46700,start:10000,color:'var(--t3)'};
   if(t<50000) return{tier:4,ri:.40,ex:.60,lbl:'Tier 4 — Capped Risk', next:50000,start:46700,color:'var(--t4)'};
   return             {tier:5,ri:.00,ex:1.0,lbl:'Tier 5 — Salary Machine',next:50000,start:50000,color:'var(--t5)'};
 }
-function getPos(t){return Math.min(Math.max(500+Math.floor(t/1000)*100-100,500),5000);}
+function getPos(t){return Math.min(Math.max(Math.round(Math.floor(t/1000)*100/100)*100,500),3300);}
 
 // ── FORMAT ────────────────────────────────────────────────────────────
 function fmt(n,sign=false){
@@ -526,7 +526,7 @@ function fmtD(d){if(!d)return'';return new Date(d+'T12:00:00').toLocaleDateStrin
 function renderDash(){
   const cfg=getCfg(S.tradeable);
   const pos=getPos(S.tradeable);
-  const rUnit=pos*0.20;
+  const rUnit=pos*0.30;
   const broker=S.tradeable+S.excess;
   document.documentElement.style.setProperty('--accent',cfg.color);
   document.getElementById('tier-lbl').textContent=cfg.lbl;
@@ -565,8 +565,8 @@ function renderGrowthChart(){
   const ctx=document.getElementById('growth-chart').getContext('2d');
   const days=S.dayHistory.filter(d=>!d.isReset);
   const labels=['Start'];
-  const broker=[1411];
-  const total=[1411];
+  const broker=[10470];
+  const total=[10470];
   let cumW=0;
   days.forEach(d=>{
     labels.push('D'+d.day);
@@ -790,12 +790,12 @@ function addExit(data=null){
 function calcTrade(){
   const c=parseInt(document.getElementById('t-contracts').value);
   const e=parseFloat(document.getElementById('t-entry').value);
-  const pos=getPos(S.tradeable);const rU=pos*0.20;
+  const pos=getPos(S.tradeable);const rU=pos*0.30;
   if(!isNaN(c)&&c>0&&!isNaN(e)&&e>0){
     document.getElementById('tc-pos').textContent=fmt(pos);
     document.getElementById('tc-cost').textContent=fmt(c*e*100);
     document.getElementById('tc-r').textContent=fmt(rU);
-    document.getElementById('tc-stop').textContent='$'+(e*0.80).toFixed(2);
+    document.getElementById('tc-stop').textContent='$'+(e*0.70).toFixed(2);
     document.getElementById('t-calcbox').style.display='block';
     let cPL=null,tEV=0,tEC=0;
     document.querySelectorAll('[id^="ex-"]').forEach(row=>{
@@ -821,7 +821,7 @@ function saveTrade(){
   if(!ticker){alert('Enter a ticker');return;}
   const c=parseFloat(document.getElementById('t-contracts').value)||0;
   const e=parseFloat(document.getElementById('t-entry').value)||0;
-  const pos=getPos(S.tradeable);const rU=pos*0.20;
+  const pos=getPos(S.tradeable);const rU=pos*0.30;
   const exits=[];
   document.querySelectorAll('[id^="ex-"]').forEach(row=>{
     const rid=row.id.split('-')[1];
@@ -840,7 +840,7 @@ function saveTrade(){
     contract:document.getElementById('t-contract').value.trim(),
     expiry:document.getElementById('t-expiry').value,
     contracts:c,entryPrice:e,positionSize:pos,rUnit:rU,
-    stopPrice:e>0?parseFloat((e*0.80).toFixed(2)):0,
+    stopPrice:e>0?parseFloat((e*0.70).toFixed(2)):0,
     totalCost:c*e*100,exits,pl:fPL,rOutcome:rU>0?fPL/rU:0,
     notes:document.getElementById('t-notes').value.trim(),
     delta:parseFloat(document.getElementById('t-delta').value)||null,
@@ -896,7 +896,7 @@ function renderTrades(trades){
   if(!S.trades.length){el.innerHTML='<div class="empty">No trades logged yet</div>';return;}
   if(!trades.length){el.innerHTML='<div class="empty">No trades match your filters</div>';return;}
   el.innerHTML=trades.map(t=>{
-    const g=t.pl>=0;const rO=t.rOutcome||(t.pl/(t.rUnit||t.positionSize*0.2));
+    const g=t.pl>=0;const rO=t.rOutcome||(t.pl/(t.rUnit||t.positionSize*0.3));
     const col=g?'var(--green)':'var(--red)';const sg=g?'+':'';
     const exits=(t.exits||[]).map((x,i)=>`<div style="background:var(--bg2);border-radius:5px;padding:4px 8px;margin-top:4px;font-size:10px;color:var(--muted)">Exit ${i+1}: ${x.contracts}x @ $${x.price} = ${fmt(x.contracts*x.price*100)}</div>`).join('');
     return`<div class="li ${g?'gl':'rl'} fi">
@@ -957,7 +957,7 @@ function renderAnalytics(){
       if(!bt.length) return;
       const wins = bt.filter(t=>t.pl>0);
       const wr = (wins.length/bt.length*100).toFixed(0);
-      const avgR = bt.length ? (bt.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.2)),0)/bt.length).toFixed(2) : 0;
+      const avgR = bt.length ? (bt.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.3)),0)/bt.length).toFixed(2) : 0;
       const avgPL = bt.length ? bt.reduce((a,t)=>a+t.pl,0)/bt.length : 0;
       dHtml += `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;border-left:3px solid ${b.color}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
@@ -986,7 +986,7 @@ function renderAnalytics(){
       const bt = typeTrades.filter(t=>t.tradeType===type);
       const wins = bt.filter(t=>t.pl>0);
       const wr = (wins.length/bt.length*100).toFixed(0);
-      const avgR = (bt.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.2)),0)/bt.length).toFixed(2);
+      const avgR = (bt.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.3)),0)/bt.length).toFixed(2);
       const avgPL = bt.reduce((a,t)=>a+t.pl,0)/bt.length;
       const col = typeColors[type]||'#e2e8f0';
       tHtml += `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;border-left:3px solid ${col}">
@@ -1008,8 +1008,8 @@ function renderAnalytics(){
   const twW=tw.filter(t=>t.pl>0),twL=tw.filter(t=>t.pl<0);
   const aWt=twW.length?twW.reduce((a,t)=>a+t.pl,0)/twW.length:null;
   const aLt=twL.length?twL.reduce((a,t)=>a+t.pl,0)/twL.length:null;
-  const aWr=twW.length?twW.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.2)),0)/twW.length:null;
-  const aLr=twL.length?twL.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.2)),0)/twL.length:null;
+  const aWr=twW.length?twW.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.3)),0)/twW.length:null;
+  const aLr=twL.length?twL.reduce((a,t)=>a+(t.pl/(t.rUnit||t.positionSize*0.3)),0)/twL.length:null;
   const wr=tw.length?twW.length/tw.length:null;
   const expR=(wr!==null&&aWr!==null&&aLr!==null)?wr*aWr+(1-wr)*aLr:null;
   document.getElementById('an-avg-wt').textContent=aWt!==null?fmt(aWt,true):'—';
