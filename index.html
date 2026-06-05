@@ -77,6 +77,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   <div class="hdr">
     <div class="htitle">SCHUTTI TRADES</div>
     <div class="hsub">Options Trading Journal</div>
+    <div style="margin-top:8px">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Total Value</div>
+      <div id="d-total-value" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--accent)">$0</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:1px">Brokerage + All-Time Withdrawals</div>
+    </div>
   </div>
   <div class="rbanner" id="reset-banner" style="display:none">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:2px">⚡ WEEK COMPLETE</div>
@@ -547,6 +552,8 @@ function renderDash(){
   document.getElementById('d-split-c').textContent=(cfg.ri*100).toFixed(0)+'%';
   document.getElementById('d-split-e').textContent=(cfg.ex*100).toFixed(0)+'%';
   document.getElementById('d-withdrawn').textContent=fmt(S.totalWithdrawn);
+  document.getElementById('d-total-value').textContent=fmt(broker+S.totalWithdrawn);
+  document.getElementById('d-total-value').style.color=cfg.color;
   document.getElementById('d-week-info').textContent=`Week ${S.weekCount} · Day ${S.daysThisWeek}/5`;
   document.getElementById('d-daynum').textContent=S.dayCount+1;
   document.querySelectorAll('.nb').forEach(b=>b.style.setProperty('--accent',cfg.color));
