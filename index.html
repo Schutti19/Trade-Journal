@@ -552,7 +552,7 @@ function renderDash(){
   document.getElementById('d-split-c').textContent=(cfg.ri*100).toFixed(0)+'%';
   document.getElementById('d-split-e').textContent=(cfg.ex*100).toFixed(0)+'%';
   document.getElementById('d-withdrawn').textContent=fmt(S.totalWithdrawn);
-  document.getElementById('d-total-value').textContent=fmt(broker+S.totalWithdrawn);
+  document.getElementById('d-total-value').textContent=fmt(S.tradeable+S.excess+S.totalWithdrawn);
   document.getElementById('d-total-value').style.color=cfg.color;
   document.getElementById('d-week-info').textContent=`Week ${S.weekCount} · Day ${S.daysThisWeek}/5`;
   document.getElementById('d-daynum').textContent=S.dayCount+1;
