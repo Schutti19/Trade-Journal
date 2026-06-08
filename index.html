@@ -175,6 +175,27 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="btn bs bw" onclick="document.getElementById('import-file').click()">📥 Import</button>
   </div>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)"/>
+  <!-- Balance Editor -->
+  <div class="card" style="margin-bottom:10px">
+    <div class="lbl" style="margin-bottom:10px">Adjust Account Balances</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.6">Update your starting balances without losing trade history or day logs.</div>
+    <div class="g2" style="margin-bottom:10px">
+      <div class="ig">
+        <div class="lbl" style="margin-bottom:4px">Tradeable Balance</div>
+        <input type="number" id="bal-tradeable" placeholder="8470" step="0.01"/>
+      </div>
+      <div class="ig">
+        <div class="lbl" style="margin-bottom:4px">Excess Balance</div>
+        <input type="number" id="bal-excess" placeholder="2000" step="0.01"/>
+      </div>
+    </div>
+    <div class="ig">
+      <div class="lbl" style="margin-bottom:4px">Total Withdrawn (lifetime)</div>
+      <input type="number" id="bal-withdrawn" placeholder="0" step="0.01"/>
+    </div>
+    <button class="btn bp bw" onclick="updateBalances()" style="margin-top:4px">Update Balances</button>
+  </div>
+
   <div style="margin-top:8px">
     <button class="btn bd bw" onclick="confirmReset()" style="font-size:10px">🗑 Reset All Data</button>
   </div>
@@ -419,7 +440,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
 <script>
 // ── STATE ─────────────────────────────────────────────────────────────
-const DEFAULTS={tradeable:8470,excess:2000,totalWithdrawn:0,weeklyExcess:0,dayCount:0,weekCount:1,daysThisWeek:0,dayHistory:[],trades:[],withdrawals:[]};
+// Settings are separate from data — updating code never wipes activity
+const APP_VERSION = '2.1';
+const DEFAULT_SETTINGS={tradeable:8470,excess:2000};
+const DEFAULTS={tradeable:8470,excess:2000,totalWithdrawn:0,weeklyExcess:0,dayCount:0,weekCount:1,daysThisWeek:0,dayHistory:[],trades:[],withdrawals:[],_version:APP_VERSION};
 let S=loadState();
 let SB_URL='', SB_KEY='', sbReady=false;
 
@@ -460,7 +484,9 @@ async function loadFromSupabase(){
     const rows=await res.json();
     console.log('Supabase rows:',rows);
     if(rows&&rows.length>0&&rows[0].data&&Object.keys(rows[0].data).length>0){
-      S=rows[0].data;
+      const remote = rows[0].data;
+      // Always load activity data from Supabase
+      S = remote;
       saveLocal();
       renderAll();
       showSyncStatus('✓ Loaded',false);
@@ -556,6 +582,13 @@ function renderDash(){
   document.getElementById('d-total-value').style.color=cfg.color;
   document.getElementById('d-week-info').textContent=`Week ${S.weekCount} · Day ${S.daysThisWeek}/5`;
   document.getElementById('d-daynum').textContent=S.dayCount+1;
+  // Pre-populate balance editor
+  const bt=document.getElementById('bal-tradeable');
+  const be=document.getElementById('bal-excess');
+  const bw=document.getElementById('bal-withdrawn');
+  if(bt&&!bt.value) bt.placeholder=fmt(S.tradeable).replace('$','');
+  if(be&&!be.value) be.placeholder=fmt(S.excess).replace('$','');
+  if(bw&&!bw.value) bw.placeholder=fmt(S.totalWithdrawn).replace('$','');
   document.querySelectorAll('.nb').forEach(b=>b.style.setProperty('--accent',cfg.color));
   const banner=document.getElementById('reset-banner');
   if(cfg.tier===5&&S.daysThisWeek>=5){
@@ -1133,6 +1166,24 @@ function showPage(name){
 document.querySelectorAll('.modal').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});});
 
 // ── INIT ──────────────────────────────────────────────────────────────
+function updateBalances(){
+  const t = parseFloat(document.getElementById('bal-tradeable').value);
+  const e = parseFloat(document.getElementById('bal-excess').value);
+  const w = parseFloat(document.getElementById('bal-withdrawn').value);
+  if(isNaN(t)||isNaN(e)){alert('Enter valid balances');return;}
+  S.tradeable = t;
+  S.excess = e;
+  if(!isNaN(w)) S.totalWithdrawn = w;
+  save();
+  renderDash();
+  renderAnalytics();
+  // Clear inputs
+  document.getElementById('bal-tradeable').value='';
+  document.getElementById('bal-excess').value='';
+  document.getElementById('bal-withdrawn').value='';
+  alert('Balances updated successfully!');
+}
+
 function renderAll(){renderDash();renderAnalytics();}
 
 function initApp(){
