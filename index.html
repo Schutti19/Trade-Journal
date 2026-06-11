@@ -1193,17 +1193,33 @@ document.querySelectorAll('.modal').forEach(m=>{m.addEventListener('click',e=>{i
 
 // ── INIT ──────────────────────────────────────────────────────────────
 function updateBalances(){
-  const t = parseFloat(document.getElementById('bal-tradeable').value);
-  const e = parseFloat(document.getElementById('bal-excess').value);
-  const w = parseFloat(document.getElementById('bal-withdrawn').value);
-  if(isNaN(t)||isNaN(e)){alert('Enter valid balances');return;}
-  S.tradeable = t;
-  S.excess = e;
-  if(!isNaN(w)) S.totalWithdrawn = w;
+  const tVal = document.getElementById('bal-tradeable').value.trim();
+  const eVal = document.getElementById('bal-excess').value.trim();
+  const wVal = document.getElementById('bal-withdrawn').value.trim();
+  // Only update fields that have values entered — leave others unchanged
+  let changed = false;
+  if(tVal !== ''){
+    const t = parseFloat(tVal);
+    if(isNaN(t)){alert('Enter a valid tradeable balance');return;}
+    S.tradeable = t;
+    changed = true;
+  }
+  if(eVal !== ''){
+    const e = parseFloat(eVal);
+    if(isNaN(e)){alert('Enter a valid excess balance');return;}
+    S.excess = e;
+    changed = true;
+  }
+  if(wVal !== ''){
+    const w = parseFloat(wVal);
+    if(isNaN(w)){alert('Enter a valid withdrawn amount');return;}
+    S.totalWithdrawn = w;
+    changed = true;
+  }
+  if(!changed){alert('Enter at least one value to update');return;}
   save();
   renderDash();
   renderAnalytics();
-  // Clear inputs
   document.getElementById('bal-tradeable').value='';
   document.getElementById('bal-excess').value='';
   document.getElementById('bal-withdrawn').value='';
