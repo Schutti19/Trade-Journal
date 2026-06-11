@@ -716,36 +716,59 @@ function saveEditDay(){
   const notes = document.getElementById('edit-day-notes').value.trim();
   if(isNaN(newPL)){alert('Enter a valid P&L');return;}
 
-  const cfg = getCfg(d.tS);
-  const oldPL = d.pl;
+  const plChanged = newPL !== d.pl;
 
-  // Recalculate buckets from scratch based on new PL
-  let newTE = d.tS, newEE = d.eS, newRI = 0, newEX = 0;
-  if(newPL > 0){
-    if(cfg.tier===5){newEX=newPL;newEE=d.eS+newPL;}
-    else{newRI=newPL*cfg.ri;newEX=newPL*cfg.ex;newTE=d.tS+newRI;newEE=d.eS+newEX;}
-  } else {
-    newTE = Math.max(0, d.tS + newPL);
-    newEE = d.eS;
+  // Only recalculate balances if P&L actually changed
+  if(plChanged){
+    const cfg = getCfg(d.tS);
+    let newTE = d.tS, newEE = d.eS, newRI = 0, newEX = 0;
+    if(newPL > 0){
+      if(cfg.tier===5){newEX=newPL;newEE=d.eS+newPL;}
+      else{newRI=newPL*cfg.ri;newEX=newPL*cfg.ex;newTE=d.tS+newRI;newEE=d.eS+newEX;}
+    } else {
+      newTE = Math.max(0, d.tS + newPL);
+      newEE = d.eS;
+    }
+    const teDiff = newTE - d.tE;
+    const eeDiff = newEE - d.eE;
+    d.pl = newPL;
+    d.tE = newTE;
+    d.eE = newEE;
+    d.ri = newRI;
+    d.ex = newEX;
+    S.tradeable = Math.max(0, S.tradeable + teDiff);
+    S.excess = Math.max(0, S.excess + eeDiff);
   }
 
-  // Calculate the difference to adjust current live balances
-  const teDiff = newTE - d.tE;
-  const eeDiff = newEE - d.eE;
-
-  // Update the day entry
-  d.pl = newPL;
-  d.tE = newTE;
-  d.eE = newEE;
-  d.ri = newRI;
-  d.ex = newEX;
-  if(notes) d.notes = (d.notes ? d.notes + ' · ' : '') + `[Edited: ${notes}]`;
-
-  // Adjust live balances by the difference
-  S.tradeable = Math.max(0, S.tradeable + teDiff);
-  S.excess = Math.max(0, S.excess + eeDiff);
+  // Always update notes regardless of P&L change
+  if(notes) d.notes = (d.notes ? d.notes + ' · ' : '') + notes;
 
   closeEditDayModal();
+  save();
+  renderDash();
+  renderDailyLog();
+  renderAnalytics();
+}
+
+function deleteDay(idx){
+  const d = S.dayHistory[idx];
+  if(!d) return;
+  if(!confirm(`Delete Day ${d.day} (${d.isReset ? 'Reset' : (d.pl >= 0 ? '+' : '') + '$' + Math.round(Math.abs(d.pl)).toLocaleString()})?`)) return;
+
+  // Reverse the effect on live balances
+  if(!d.isReset && d.pl !== undefined){
+    if(d.pl > 0){
+      S.tradeable = Math.max(0, S.tradeable - (d.ri || 0));
+      S.excess = Math.max(0, S.excess - (d.ex || 0));
+    } else {
+      // Loss was subtracted from tradeable — add it back
+      S.tradeable = S.tradeable + Math.abs(d.pl);
+    }
+    S.dayCount = Math.max(0, S.dayCount - 1);
+    S.daysThisWeek = Math.max(0, S.daysThisWeek - 1);
+  }
+
+  S.dayHistory.splice(idx, 1);
   save();
   renderDash();
   renderDailyLog();
@@ -774,7 +797,10 @@ function renderDailyLog(){
       </div>
       ${d.notes?`<div style="font-size:11px;color:var(--muted);margin-top:5px;font-style:italic">"${d.notes}"</div>`:''}
       <div style="margin-top:9px">
-        <button class="btn bs" style="font-size:10px;padding:7px 14px;width:100%" onclick="openEditDayModal(${S.dayHistory.indexOf(d)})">✏️ Edit P&L</button>
+        <div style="display:flex;gap:7px;margin-top:9px">
+          <button class="btn bs" style="flex:1;font-size:10px;padding:7px" onclick="openEditDayModal(${S.dayHistory.indexOf(d)})">✏️ Edit</button>
+          <button class="btn bd" style="flex:1;font-size:10px;padding:7px" onclick="deleteDay(${S.dayHistory.indexOf(d)})">Delete</button>
+        </div>
       </div>
     </div>`;
   }).join('');
